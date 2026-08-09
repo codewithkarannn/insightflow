@@ -6,7 +6,7 @@ InsightFlow transforms natural language questions into safe, optimized SQL queri
 
 ---
 
-## 🏗 System Architecture
+##  System Architecture
 
 ```mermaid
 graph TD
