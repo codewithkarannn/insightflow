@@ -21,7 +21,7 @@ graph TD
 
 ---
 
-## 📦 Project Components
+## Project Components
 
 InsightFlow is structured as a clean, modular monorepo:
 
@@ -33,7 +33,7 @@ InsightFlow is structured as a clean, modular monorepo:
 
 ---
 
-## ⚡ Quick Start with Docker (Recommended)
+## Quick Start with Docker (Recommended)
 
 Run the entire InsightFlow stack on any machine with Docker installed in seconds:
 
@@ -61,7 +61,7 @@ docker compose up --build -d
 
 ---
 
-## 🛠 Local Development Setup
+##  Local Development Setup
 
 If you prefer running services individually outside of Docker:
 
@@ -91,7 +91,7 @@ dotnet test InsightFlow.Nl2Sql.Tests
 
 ---
 
-## 🔒 Security & Guardrails
+##  Security & Guardrails
 
 - **AST Mutation Blocking:** Enforces read-only execution. Destructive queries (`DROP`, `DELETE`, `UPDATE`, `ALTER`, `INSERT`) are rejected before hitting the database.
 - **Column-Level Masking:** Sensitive columns (e.g., `PasswordHash`, `CreditCardNumber`) are filtered out of prompt context and sanitized from response payloads.
@@ -100,6 +100,6 @@ dotnet test InsightFlow.Nl2Sql.Tests
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
