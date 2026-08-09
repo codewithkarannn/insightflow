@@ -1,0 +1,12 @@
+.git
+.gitignore
+.vs
+.idea
+.vscode
+**/bin/
+**/obj/
+**/node_modules/
+**/.angular/
+**/dist/
+*.user
+.DS_Store

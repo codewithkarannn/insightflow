@@ -1,0 +1,53 @@
+/* You can add global styles to this file, and also import other style files */
+:root, [data-theme="dark"] {
+  --bg-main: #09090b;
+  --surface-card: #121215;
+  --surface-elevated: #18181b;
+  --border-subtle: #27272a;
+  --border-strong: #3f3f46;
+  --text-primary: #fafafa;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --accent-contrast: #ffffff;
+  --btn-primary-bg: #ffffff;
+  --btn-primary-text: #000000;
+  --btn-primary-hover: #e4e4e7;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+[data-theme="light"] {
+  --bg-main: #ffffff;
+  --surface-card: #f4f4f5;
+  --surface-elevated: #e4e4e7;
+  --border-subtle: #e4e4e7;
+  --border-strong: #a1a1aa;
+  --text-primary: #09090b;
+  --text-muted: #52525b;
+  --text-dim: #71717a;
+  --accent-contrast: #000000;
+  --btn-primary-bg: #09090b;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #27272a;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+  background-color: var(--text-primary);
+  color: var(--bg-main);
+}
