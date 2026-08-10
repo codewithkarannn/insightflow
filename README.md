@@ -84,10 +84,6 @@ npm start
 ```
 Studio runs at `http://localhost:4200`.
 
-### 3. Run Library Tests
-```bash
-dotnet test InsightFlow.Nl2Sql.Tests
-```
 
 ---
 
