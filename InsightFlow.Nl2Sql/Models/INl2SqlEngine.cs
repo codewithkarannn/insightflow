@@ -11,6 +11,8 @@ public interface INl2SqlEngine
     Task<Nl2SqlQueryResult> ExecuteQueryAsync(
         string userPrompt, 
         string connectionString, 
-        UserSecurityContext? securityContext = null, 
+        UserSecurityContext? securityContext = null,
+        int? timeoutSeconds = null,
+        int? maxRowLimit = null,
         CancellationToken ct = default);
 }

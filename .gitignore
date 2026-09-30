@@ -1,10 +1,15 @@
-# Environment files
+# Environment & App Settings files
 .env
 .env.local
 .env.*.local
 .env.development
 .env.production
 !.env.example
+
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.example.json
+!**/appsettings.*.example.json
 
 # Excluded Projects (Tests & Testers)
 InsightFlow.Nl2Sql.Tests/

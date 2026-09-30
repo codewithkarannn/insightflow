@@ -2,19 +2,27 @@ using System.Text.Json;
 
 namespace InsightFlow.Nl2Sql.Models;
 
+public record QueryExecutionStats(
+    long ElapsedMilliseconds,
+    int RowCount,
+    int RowLimitApplied,
+    int TimeoutSecondsApplied);
+
 public record Nl2SqlQueryResult(
     bool IsSuccess,
     string GeneratedSql,
     List<Dictionary<string, object?>>? Data,
     string? ErrorMessage,
     string? JsonData = null,
-    ChartRecommendation? Chart = null)
+    ChartRecommendation? Chart = null,
+    QueryExecutionStats? Stats = null)
 {
     public static Nl2SqlQueryResult Success(
         string generatedSql, 
         List<Dictionary<string, object?>>? data, 
         bool formatAsJson = false,
-        ChartRecommendation? chart = null)
+        ChartRecommendation? chart = null,
+        QueryExecutionStats? stats = null)
     {
         string? jsonOutput = null;
 
@@ -33,11 +41,12 @@ public record Nl2SqlQueryResult(
             Data: data,
             ErrorMessage: null,
             JsonData: jsonOutput,
-            Chart: chart
+            Chart: chart,
+            Stats: stats
         );
     }
 
-    public static Nl2SqlQueryResult Failure(string errorMessage, string generatedSql = "")
+    public static Nl2SqlQueryResult Failure(string errorMessage, string generatedSql = "", QueryExecutionStats? stats = null)
     {
         return new Nl2SqlQueryResult(
             IsSuccess: false,
@@ -45,7 +54,8 @@ public record Nl2SqlQueryResult(
             Data: null, 
             ErrorMessage: errorMessage,
             JsonData: null,
-            Chart: null
+            Chart: null,
+            Stats: stats
         );
     }
 }

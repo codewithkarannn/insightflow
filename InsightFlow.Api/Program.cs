@@ -32,10 +32,9 @@ builder.Services.AddNl2SqlEngine(options =>
     options.ApiKey = apiKey;
     options.BaseUrl = builder.Configuration["Nl2Sql:BaseUrl"] ?? builder.Configuration["NL2SQL_BASE_URL"] ?? "https://openrouter.ai/api/v1";
     options.ModelName = builder.Configuration["Nl2Sql:ModelName"] ?? builder.Configuration["NL2SQL_MODEL_NAME"] ?? "openai/gpt-4o-mini";
-    options.MaxRowLimit = 50;
-    options.QueryTimeoutSeconds = 15;
+    options.MaxRowLimit = 100;
+    options.QueryTimeoutSeconds = 10;
     options.ResponseFormat = OutputFormat.Json;
-    
 });
 
 var app = builder.Build();
@@ -78,10 +77,20 @@ app.MapPost("/api/query", async (
         Role: "Analyst",
         RestrictedColumns: restrictedCols);
 
+    int? timeoutSeconds = request.TimeoutSeconds.HasValue
+        ? Math.Clamp(request.TimeoutSeconds.Value, 1, 120)
+        : null;
+
+    int? maxRowLimit = request.MaxRowLimit.HasValue
+        ? Math.Clamp(request.MaxRowLimit.Value, 1, 1000)
+        : null;
+
     var result = await engine.ExecuteQueryAsync(
         request.Prompt, 
         connString, 
         securityContext, 
+        timeoutSeconds,
+        maxRowLimit,
         ct);
 
     if (!result.IsSuccess)
@@ -90,7 +99,8 @@ app.MapPost("/api/query", async (
         {
             isSuccess = false,
             error = result.ErrorMessage,
-            sql = result.GeneratedSql
+            sql = result.GeneratedSql,
+            stats = result.Stats
         });
     }
 
@@ -99,7 +109,8 @@ app.MapPost("/api/query", async (
         isSuccess = true,
         data = result.Data,
         sql = result.GeneratedSql,
-        chart = result.Chart
+        chart = result.Chart,
+        stats = result.Stats
     });
 });
 
@@ -108,4 +119,6 @@ app.Run();
 public record Nl2SqlApiRequest(
     string Prompt,
     string? ConnectionString,
-    HashSet<string>? RestrictedColumns);
+    HashSet<string>? RestrictedColumns,
+    int? TimeoutSeconds = null,
+    int? MaxRowLimit = null);

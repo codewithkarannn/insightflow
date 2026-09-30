@@ -16,6 +16,9 @@ public partial class AstSqlGuardrail : ISqlGuardrail
     [GeneratedRegex(@"\bLIMIT\s+(\d+)\b", RegexOptions.IgnoreCase)]
     private static partial Regex LimitClauseRegex();
 
+    [GeneratedRegex(@"\bSELECT\s+(DISTINCT\s+)?TOP\s*\(?\s*(\d+)\s*\)?\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex TopClauseRegex();
+
     public (bool IsSafe, string SanitizedSql, string? ViolationError) ValidateAndSecureSql(
         string rawSql, 
         UserSecurityContext? securityContext = null, 
@@ -53,7 +56,7 @@ public partial class AstSqlGuardrail : ISqlGuardrail
             return (false, cleanSql, $"Forbidden SQL operation detected: '{dangerousMatch.Value}'.");
         }
 
-        // 5. Enforce Max Row Limit (Limit injection/cap)
+        // 5. Enforce Max Row Limit (Limit injection/cap for LIMIT or TOP)
         cleanSql = EnforceLimit(cleanSql, maxRows);
 
         return (true, cleanSql, null);
@@ -72,19 +75,33 @@ public partial class AstSqlGuardrail : ISqlGuardrail
 
     private static string EnforceLimit(string sql, int maxRows)
     {
-        var match = LimitClauseRegex().Match(sql);
-        if (match.Success)
+        // 1. Handle TOP clause (T-SQL / SQL Server syntax)
+        var topMatch = TopClauseRegex().Match(sql);
+        if (topMatch.Success)
         {
-            var existingLimit = int.Parse(match.Groups[1].Value);
-            if (existingLimit > maxRows)
+            var existingTop = int.Parse(topMatch.Groups[2].Value);
+            if (existingTop > maxRows)
             {
-                // Cap existing limit down to maximum allowed limit
-                return LimitClauseRegex().Replace(sql, $"LIMIT {maxRows}");
+                var distinctGroup = topMatch.Groups[1].Value;
+                return TopClauseRegex().Replace(sql, $"SELECT {distinctGroup}TOP ({maxRows}) ", 1);
             }
             return sql;
         }
 
-        // Append LIMIT if absent
-        return $"{sql.TrimEnd(';')} LIMIT {maxRows}";
+        // 2. Handle LIMIT clause (SQLite, MySQL, PostgreSQL syntax)
+        var limitMatch = LimitClauseRegex().Match(sql);
+        if (limitMatch.Success)
+        {
+            var existingLimit = int.Parse(limitMatch.Groups[1].Value);
+            if (existingLimit > maxRows)
+            {
+                // Cap existing limit down to maximum allowed limit
+                return LimitClauseRegex().Replace(sql, $"LIMIT {maxRows}", 1);
+            }
+            return sql;
+        }
+
+        // 3. Append LIMIT if absent
+        return $"{sql.TrimEnd(';', ' ', '\r', '\n', '\t')} LIMIT {maxRows}";
     }
 }

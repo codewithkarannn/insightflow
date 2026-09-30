@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using InsightFlow.Nl2Sql.Abstractions;
 using InsightFlow.Nl2Sql.Models;
 using Microsoft.Extensions.Options;
@@ -29,9 +30,22 @@ public class Nl2SqlEngine : INl2SqlEngine
     public async Task<Nl2SqlQueryResult> ExecuteQueryAsync(
         string userPrompt, 
         string connectionString, 
-        UserSecurityContext? securityContext = null, 
+        UserSecurityContext? securityContext = null,
+        int? timeoutSeconds = null,
+        int? maxRowLimit = null,
         CancellationToken ct = default)
     {
+        int effectiveTimeout = (timeoutSeconds.HasValue && timeoutSeconds.Value > 0)
+            ? timeoutSeconds.Value
+            : _options.QueryTimeoutSeconds;
+
+        int effectiveMaxRows = (maxRowLimit.HasValue && maxRowLimit.Value > 0)
+            ? maxRowLimit.Value
+            : _options.MaxRowLimit;
+
+        var stopwatch = Stopwatch.StartNew();
+        string sanitizedSql = string.Empty;
+
         try
         {
             // 1. Direct Input Pre-Check: Block raw DDL/DML mutation prompts upfront without hitting LLM
@@ -40,13 +54,14 @@ public class Nl2SqlEngine : INl2SqlEngine
                 trimmedPrompt.StartsWith("DROP", StringComparison.OrdinalIgnoreCase) ||
                 trimmedPrompt.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase) ||
                 trimmedPrompt.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase) ||
+                trimmedPrompt.StartsWith("EXEC", StringComparison.OrdinalIgnoreCase) ||
                 trimmedPrompt.StartsWith("ALTER", StringComparison.OrdinalIgnoreCase))
             {
-                return new Nl2SqlQueryResult(
-                    IsSuccess: false,
-                    GeneratedSql: userPrompt,
-                    Data: null,
-                    ErrorMessage: "Security Violation: Direct DDL/DML mutation statements are strictly prohibited.");
+                stopwatch.Stop();
+                return Nl2SqlQueryResult.Failure(
+                    "Security Violation: Direct DDL/DML mutation statements are strictly prohibited.",
+                    userPrompt,
+                    new QueryExecutionStats(stopwatch.ElapsedMilliseconds, 0, effectiveMaxRows, effectiveTimeout));
             }
 
             // 2. Extract database schema
@@ -56,23 +71,24 @@ public class Nl2SqlEngine : INl2SqlEngine
             var synthesisResult = await _synthesizer.SynthesizeSqlAsync(userPrompt, schema, ct);
             var rawSql = synthesisResult.Sql;
 
-            // 4. Validate SQL via AST Guardrails
-            var (isSafe, sanitizedSql, violationError) = _guardrail.ValidateAndSecureSql(rawSql, securityContext, _options.MaxRowLimit);
+            // 4. Validate SQL via AST Guardrails (enforce effectiveMaxRows)
+            var (isSafe, securedSql, violationError) = _guardrail.ValidateAndSecureSql(rawSql, securityContext, effectiveMaxRows);
+            sanitizedSql = securedSql;
 
             if (!isSafe)
             {
-                return new Nl2SqlQueryResult(
-                    IsSuccess: false, 
-                    GeneratedSql: rawSql, 
-                    Data: null, 
-                    ErrorMessage: $"Security Violation: {violationError}");
+                stopwatch.Stop();
+                return Nl2SqlQueryResult.Failure(
+                    $"Security Violation: {violationError}", 
+                    rawSql,
+                    new QueryExecutionStats(stopwatch.ElapsedMilliseconds, 0, effectiveMaxRows, effectiveTimeout));
             }
 
-            // 5. Execute query
+            // 5. Execute query (enforce effectiveTimeout)
             var dataRows = await _executor.ExecuteReaderAsync(
                 connectionString, 
                 sanitizedSql, 
-                _options.QueryTimeoutSeconds, 
+                effectiveTimeout, 
                 ct);
 
             // 6. Check for LLM synthetic error response
@@ -81,7 +97,11 @@ public class Nl2SqlEngine : INl2SqlEngine
                 var errVal = dataRows[0]["Error"]?.ToString();
                 if (!string.IsNullOrWhiteSpace(errVal) && errVal.StartsWith("ERROR:", StringComparison.OrdinalIgnoreCase))
                 {
-                    return Nl2SqlQueryResult.Failure(errVal, sanitizedSql);
+                    stopwatch.Stop();
+                    return Nl2SqlQueryResult.Failure(
+                        errVal, 
+                        sanitizedSql,
+                        new QueryExecutionStats(stopwatch.ElapsedMilliseconds, 0, effectiveMaxRows, effectiveTimeout));
                 }
             }
 
@@ -91,16 +111,39 @@ public class Nl2SqlEngine : INl2SqlEngine
                 SanitizeDataRows(dataRows, securityContext.RestrictedColumns);
             }
 
+            stopwatch.Stop();
+            var stats = new QueryExecutionStats(
+                stopwatch.ElapsedMilliseconds, 
+                dataRows?.Count ?? 0, 
+                effectiveMaxRows, 
+                effectiveTimeout);
+
             bool returnJson = _options.ResponseFormat == OutputFormat.Json;
-            return Nl2SqlQueryResult.Success(sanitizedSql, dataRows, returnJson, synthesisResult.Chart);
+            return Nl2SqlQueryResult.Success(sanitizedSql, dataRows, returnJson, synthesisResult.Chart, stats);
+        }
+        catch (TimeoutException tex)
+        {
+            stopwatch.Stop();
+            return Nl2SqlQueryResult.Failure(
+                tex.Message, 
+                sanitizedSql, 
+                new QueryExecutionStats(stopwatch.ElapsedMilliseconds, 0, effectiveMaxRows, effectiveTimeout));
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            stopwatch.Stop();
+            return Nl2SqlQueryResult.Failure(
+                $"Query execution timed out after {effectiveTimeout} seconds.", 
+                sanitizedSql, 
+                new QueryExecutionStats(stopwatch.ElapsedMilliseconds, 0, effectiveMaxRows, effectiveTimeout));
         }
         catch (Exception ex)
         {
-            return new Nl2SqlQueryResult(
-                IsSuccess: false, 
-                GeneratedSql: string.Empty, 
-                Data: null, 
-                ErrorMessage: ex.Message);
+            stopwatch.Stop();
+            return Nl2SqlQueryResult.Failure(
+                ex.Message, 
+                sanitizedSql, 
+                new QueryExecutionStats(stopwatch.ElapsedMilliseconds, 0, effectiveMaxRows, effectiveTimeout));
         }
     }
 

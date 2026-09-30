@@ -11,7 +11,7 @@ public class DirectSqlExecutor : ISqlExecutor
     public async Task<List<Dictionary<string, object?>>> ExecuteReaderAsync(
         string connectionString, 
         string sanitizedSql, 
-        int timeoutSeconds = 5, 
+        int timeoutSeconds = 10, 
         CancellationToken ct = default)
     {
         var results = new List<Dictionary<string, object?>>();
@@ -20,28 +20,35 @@ public class DirectSqlExecutor : ISqlExecutor
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
-        // Create connection dynamically based on connection string signature
-        using DbConnection connection = CreateConnection(connectionString);
-        await connection.OpenAsync(timeoutCts.Token);
-
-        using var command = connection.CreateCommand();
-        command.CommandText = sanitizedSql;
-        command.CommandTimeout = timeoutSeconds;
-
-        using var reader = await command.ExecuteReaderAsync(timeoutCts.Token);
-        while (await reader.ReadAsync(timeoutCts.Token))
+        try
         {
-            var row = new Dictionary<string, object?>();
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                var columnName = reader.GetName(i);
-                var value = reader.IsDBNull(i) ? null : reader.GetValue(i);
-                row[columnName] = value;
-            }
-            results.Add(row);
-        }
+            // Create connection dynamically based on connection string signature
+            using DbConnection connection = CreateConnection(connectionString);
+            await connection.OpenAsync(timeoutCts.Token);
 
-        return results;
+            using var command = connection.CreateCommand();
+            command.CommandText = sanitizedSql;
+            command.CommandTimeout = timeoutSeconds;
+
+            using var reader = await command.ExecuteReaderAsync(timeoutCts.Token);
+            while (await reader.ReadAsync(timeoutCts.Token))
+            {
+                var row = new Dictionary<string, object?>();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    var columnName = reader.GetName(i);
+                    var value = reader.IsDBNull(i) ? null : reader.GetValue(i);
+                    row[columnName] = value;
+                }
+                results.Add(row);
+            }
+
+            return results;
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            throw new TimeoutException($"Query execution timed out after {timeoutSeconds} seconds.");
+        }
     }
 
     private static DbConnection CreateConnection(string connectionString)
