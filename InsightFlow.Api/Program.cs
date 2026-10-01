@@ -114,6 +114,71 @@ app.MapPost("/api/query", async (
     });
 });
 
+app.MapPost("/api/query/export", async (
+    string? format,
+    Nl2SqlApiRequest request, 
+    INl2SqlEngine engine, 
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Prompt))
+    {
+        return Results.BadRequest(new { error = "Prompt cannot be empty." });
+    }
+
+    string connString = string.IsNullOrWhiteSpace(request.ConnectionString) 
+        ? defaultConnectionString 
+        : request.ConnectionString;
+
+    var restrictedCols = request.RestrictedColumns ?? new HashSet<string>
+    {
+        "Customers.PasswordHash",
+        "Customers.CreditCardNumber"
+    };
+
+    var securityContext = new UserSecurityContext(
+        UserId: "usr_angular",
+        Role: "Analyst",
+        RestrictedColumns: restrictedCols);
+
+    int? timeoutSeconds = request.TimeoutSeconds.HasValue
+        ? Math.Clamp(request.TimeoutSeconds.Value, 1, 120)
+        : null;
+
+    int? maxRowLimit = request.MaxRowLimit.HasValue
+        ? Math.Clamp(request.MaxRowLimit.Value, 1, 1000)
+        : null;
+
+    var result = await engine.ExecuteQueryAsync(
+        request.Prompt, 
+        connString, 
+        securityContext, 
+        timeoutSeconds,
+        maxRowLimit,
+        ct);
+
+    if (!result.IsSuccess)
+    {
+        return Results.BadRequest(new
+        {
+            isSuccess = false,
+            error = result.ErrorMessage,
+            sql = result.GeneratedSql
+        });
+    }
+
+    string exportFormat = (format ?? "csv").Trim().ToLowerInvariant();
+    string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+
+    if (exportFormat == "json")
+    {
+        byte[] jsonBytes = System.Text.Encoding.UTF8.GetBytes(result.ToJson(indented: true));
+        return Results.File(jsonBytes, "application/json", $"insightflow_export_{timestamp}.json");
+    }
+
+    byte[] csvBytes = System.Text.Encoding.UTF8.GetBytes(result.ToCsv());
+    return Results.File(csvBytes, "text/csv", $"insightflow_export_{timestamp}.csv");
+});
+
 app.Run();
 
 public record Nl2SqlApiRequest(

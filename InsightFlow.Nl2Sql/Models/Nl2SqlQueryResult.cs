@@ -58,4 +58,66 @@ public record Nl2SqlQueryResult(
             Stats: stats
         );
     }
+
+    /// <summary>
+    /// Exports the query result data rows as an RFC 4180-compliant CSV string.
+    /// </summary>
+    public string ToCsv()
+    {
+        if (Data == null || Data.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        var headers = Data[0].Keys.ToList();
+
+        // Header row
+        sb.AppendLine(string.Join(",", headers.Select(EscapeCsvField)));
+
+        // Data rows
+        foreach (var row in Data)
+        {
+            var fields = headers.Select(h =>
+            {
+                row.TryGetValue(h, out var val);
+                return EscapeCsvField(val?.ToString());
+            });
+            sb.AppendLine(string.Join(",", fields));
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Exports the query result data rows as formatted or compact JSON string.
+    /// </summary>
+    public string ToJson(bool indented = true)
+    {
+        if (Data == null)
+        {
+            return "[]";
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = indented
+        };
+        return JsonSerializer.Serialize(Data, options);
+    }
+
+    private static string EscapeCsvField(string? field)
+    {
+        if (string.IsNullOrEmpty(field))
+        {
+            return string.Empty;
+        }
+
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+        {
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        }
+
+        return field;
+    }
 }

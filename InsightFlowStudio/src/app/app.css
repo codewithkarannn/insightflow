@@ -199,7 +199,81 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.export-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface-elevated, #18181b);
+  border: 1px solid var(--border-subtle, #27272a);
+  color: var(--text-primary, #fafafa);
+  padding: 0.4rem 0.75rem;
+  border-radius: 3px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: var(--surface-card, #222227);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.btn-export:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Compact export buttons for Advanced View header */
+.exec-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.btn-export-compact {
+  background: var(--surface-card, #121215);
+  border: 1px solid var(--border-subtle, #27272a);
+  color: var(--text-muted, #a1a1aa);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-export-compact:hover:not(:disabled) {
+  background: var(--surface-elevated, #18181b);
+  color: #38bdf8;
+  border-color: #38bdf8;
+}
+
+.btn-export-compact:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .filter-input {

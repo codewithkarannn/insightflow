@@ -1,9 +1,9 @@
-// src/app/app.component.ts
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StudioStore } from './store/studio.store';
 import { ChartViewerComponent } from './components/chart-viewer/chart-viewer.component';
+import { ExportService } from '../services/export.service';
 
 @Component({
   selector: 'app-root',
@@ -143,9 +143,27 @@ import { ChartViewerComponent } from './components/chart-viewer/chart-viewer.com
                   {{ store.errorMessage() ? '● FAILED / ABORTED' : '● EXECUTED SUCCESSFULLY' }}
                 </span>
               </div>
-              <button class="btn-edit-bounds" (click)="openSettingsModal()">
-                ⚙ Edit Bounds ({{ store.timeoutSeconds() }}s / {{ store.maxRowLimit() }} rows)
-              </button>
+              <div class="exec-actions-row">
+                <button
+                  class="btn-export-compact"
+                  [disabled]="store.resultCount() === 0"
+                  (click)="exportCsv()"
+                  title="Export results as CSV"
+                >
+                  📥 CSV
+                </button>
+                <button
+                  class="btn-export-compact"
+                  [disabled]="store.resultCount() === 0"
+                  (click)="exportJson()"
+                  title="Export results as formatted JSON"
+                >
+                  📥 JSON
+                </button>
+                <button class="btn-edit-bounds" (click)="openSettingsModal()">
+                  ⚙ Edit Bounds ({{ store.timeoutSeconds() }}s / {{ store.maxRowLimit() }} rows)
+                </button>
+              </div>
             </div>
 
             <div class="exec-metrics-grid">
@@ -215,13 +233,34 @@ import { ChartViewerComponent } from './components/chart-viewer/chart-viewer.com
             <div class="table-header">
               <h2>QUERY RESULTS ({{ store.resultCount() }})</h2>
 
-              <input
-                type="text"
-                class="filter-input"
-                [ngModel]="store.filterText()"
-                (ngModelChange)="store.filterText.set($event)"
-                placeholder="Filter results..."
-              />
+              <div class="table-actions">
+                <input
+                  type="text"
+                  class="filter-input"
+                  [ngModel]="store.filterText()"
+                  (ngModelChange)="store.filterText.set($event)"
+                  placeholder="Filter results..."
+                />
+
+                <div class="export-btn-group">
+                  <button
+                    class="btn-export"
+                    [disabled]="store.resultCount() === 0"
+                    (click)="exportCsv()"
+                    title="Download visible results as CSV"
+                  >
+                    <span>📥 EXPORT CSV</span>
+                  </button>
+                  <button
+                    class="btn-export"
+                    [disabled]="store.resultCount() === 0"
+                    (click)="exportJson()"
+                    title="Download visible results as formatted JSON"
+                  >
+                    <span>📥 EXPORT JSON</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="table-container">
@@ -323,10 +362,23 @@ import { ChartViewerComponent } from './components/chart-viewer/chart-viewer.com
 })
 export class App implements OnInit {
   protected readonly store = inject(StudioStore);
+  protected readonly exportService = inject(ExportService);
 
   editTimeout = 10;
   editLimit = 100;
   copiedSql = false;
+
+  exportCsv() {
+    const data = this.store.filteredResults();
+    if (data.length === 0) return;
+    this.exportService.exportToCsv(data);
+  }
+
+  exportJson() {
+    const data = this.store.filteredResults();
+    if (data.length === 0) return;
+    this.exportService.exportToJson(data);
+  }
 
   ngOnInit() {
     this.store.initTheme();
