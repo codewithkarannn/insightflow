@@ -632,15 +632,24 @@ import { ExportService } from '../services/export.service';
         </div>
       }
 
-      <!-- Floating Toast Error Notification -->
+      <!-- Floating Red Danger Toast Notification -->
       @if (store.errorMessage()) {
-        <div class="toast-container" role="alert">
-          <div class="toast toast-error">
+        <div class="toast-container" role="alert" aria-live="assertive">
+          <div class="toast toast-danger">
+            <div class="toast-danger-icon-wrapper">
+              <svg class="toast-danger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
             <div class="toast-body">
-              <span class="toast-title">Notice</span>
+              <span class="toast-title">
+                {{ isSecurityError(store.errorMessage()!) ? 'Security Guardrail Alert' : 'Execution Error' }}
+              </span>
               <p class="toast-message">{{ store.errorMessage() }}</p>
             </div>
-            <button class="toast-close" (click)="store.clearError()" title="Dismiss notice">
+            <button class="toast-close" (click)="store.clearError()" title="Dismiss error alert">
               <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 6 6 18"/>
                 <path d="m6 6 12 12"/>
@@ -669,6 +678,19 @@ export class App implements OnInit {
   readonly formatNumberWithCommas = formatNumberWithCommas;
   readonly formatCellValue = formatCellValue;
   readonly isNumberCell = isNumberCell;
+
+  isSecurityError(err: string): boolean {
+    if (!err) return false;
+    const lower = err.toLowerCase();
+    return (
+      lower.includes('security') ||
+      lower.includes('prohibited') ||
+      lower.includes('violation') ||
+      lower.includes('destructive') ||
+      lower.includes('restricted') ||
+      lower.includes('blocked')
+    );
+  }
 
   exportCsv() {
     const data = this.store.filteredResults();

@@ -117,7 +117,26 @@ export class StudioStore {
     this.showAdvancedView.set(show);
   }
 
+  private errorTimer: any = null;
+
+  setError(msg: string | null) {
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = null;
+    }
+    this.errorMessage.set(msg);
+    if (msg) {
+      this.errorTimer = setTimeout(() => {
+        this.clearError();
+      }, 7000);
+    }
+  }
+
   clearError() {
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = null;
+    }
     this.errorMessage.set(null);
   }
 
@@ -170,7 +189,7 @@ export class StudioStore {
     if (!this.prompt().trim()) return;
 
     this.isExecuting.set(true);
-    this.errorMessage.set(null);
+    this.clearError();
     this.explanation.set(null);
 
     this.api
@@ -190,7 +209,7 @@ export class StudioStore {
             this.rawResults.set(res.data ?? []);
             this.chartRecommendation.set(res.chart ?? null);
           } else {
-            this.errorMessage.set(res.error ?? 'Query evaluation failed');
+            this.setError(res.error ?? 'Query evaluation failed');
             this.rawResults.set([]);
             this.chartRecommendation.set(null);
             if (res.sql) {
@@ -201,7 +220,7 @@ export class StudioStore {
         error: (err) => {
           this.isExecuting.set(false);
           const backendErr = err.error?.error || err.message || 'Server connection failed';
-          this.errorMessage.set(backendErr);
+          this.setError(backendErr);
           this.explanation.set(err.error?.explanation ?? null);
           this.chartRecommendation.set(null);
           if (err.error?.sql) {
