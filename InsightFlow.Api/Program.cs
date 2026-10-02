@@ -100,7 +100,8 @@ app.MapPost("/api/query", async (
             isSuccess = false,
             error = result.ErrorMessage,
             sql = result.GeneratedSql,
-            stats = result.Stats
+            stats = result.Stats,
+            explanation = result.Explanation
         });
     }
 
@@ -110,7 +111,8 @@ app.MapPost("/api/query", async (
         data = result.Data,
         sql = result.GeneratedSql,
         chart = result.Chart,
-        stats = result.Stats
+        stats = result.Stats,
+        explanation = result.Explanation
     });
 });
 

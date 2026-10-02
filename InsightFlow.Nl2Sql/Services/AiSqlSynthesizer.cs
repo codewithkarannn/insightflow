@@ -47,20 +47,27 @@ public class AiSqlSynthesizer : ISqlSynthesizer
                             {formattedSchema}
 
                             ### CRITICAL RULES
-                            1. Return ONLY a single valid JSON object with fields "sql" and "chart". Do NOT use markdown code fences.
+                            1. Return ONLY a single valid JSON object with fields "sql", "explanation", and "chart". Do NOT use markdown code fences.
                             2. "sql": The raw read-only SQL SELECT query string.
-                            3. "chart": An object recommending visualization settings for Chart.js in Angular:
+                            3. "explanation": A concise, 1-to-2 sentence non-technical summary explaining what data the query retrieves and how it aggregates (written in clear, executive-ready plain language for business users).
+                            4. "chart": An object recommending visualization settings for Chart.js in Angular:
                                - "chartType": String. One of ["bar", "line", "pie", "doughnut", "radar", "scatter", "table", "none"].
                                - "title": String. A descriptive title for the chart.
-                               - "xAxisColumn": String. Column name from the SQL SELECT output to be used as category/X-axis labels.
+                               - "xAxisColumn": String. Column name from the SQL SELECT output to be used as category/X-axis labels. ALWAYS prefer the human-readable entity name/title column (e.g. "FullName", "ProductName", "CategoryName") rather than a numeric ID column.
                                - "yAxisColumns": Array of Strings. Column name(s) from the SQL SELECT output containing numeric dataset values.
                                - "reasoning": String. Short explanation of why this chart type is suitable.
-                            4. Generate ONLY read-only SELECT queries.
-                            5. If the user asks to modify, update, delete, drop, or alter data/tables, set "sql" to EXACTLY:
+                            5. Generate ONLY read-only SELECT queries.
+                            6. ENTITY PROJECTION & READABILITY (ID & NAME STANDARD):
+                               - When querying entities (e.g. Customers, Products, Categories, Orders) or aggregating metrics by entity, ALWAYS project BOTH the primary identifier (e.g. Id or CustomerId) AND the primary human-readable descriptive name/label (e.g. FullName, ProductName, CategoryName, Title) unless the user explicitly asks for only specific fields.
+                               - Foreign Key Auto-Join: When querying tables with foreign keys (e.g. Orders.CustomerId, OrderItems.ProductId, Products.CategoryId), NEVER return bare foreign key IDs alone. Always JOIN the referenced table using the foreign keys provided in the schema to include the human-readable descriptive name (e.g. JOIN Customers ON Orders.CustomerId = Customers.Id and SELECT Customers.Id, Customers.FullName, Orders.TotalAmount).
+                               - Descriptive Aliasing: Use clean column aliases when joining multiple tables to avoid name collisions (e.g. c.Id AS CustomerId, c.FullName AS CustomerName).
+                            7. If the user asks to modify, update, delete, drop, or alter data/tables, set "sql" to EXACTLY:
                                SELECT 'ERROR: Destructive operations are strictly prohibited' AS Error;
+                               set "explanation" to "Operation prohibited: Data modification statements are blocked by enterprise security guardrails."
                                and set "chart" to null.
-                            6. If the question cannot be answered using the schema, set "sql" to EXACTLY:
+                            8. If the question cannot be answered using the schema, set "sql" to EXACTLY:
                                SELECT 'ERROR: Question cannot be answered with available schema' AS Error;
+                               set "explanation" to "The requested information could not be matched against the available database tables or columns."
                                and set "chart" to null.
                             """;
             if (!string.IsNullOrWhiteSpace(_options.AdditionalSystemInstructions))
@@ -81,9 +88,12 @@ public class AiSqlSynthesizer : ISqlSynthesizer
                             1. Return ONLY the raw SQL query. Do NOT use markdown code fences (like ```sql).
                             2. Do NOT add any explanations, introductory text, or concluding notes.
                             3. Generate ONLY read-only SELECT queries.
-                            4. If the user asks to modify, update, delete, drop, or alter data/tables, return EXACTLY:
+                            4. ENTITY PROJECTION & READABILITY (ID & NAME STANDARD):
+                               - When querying entities or aggregating metrics by entity, ALWAYS project BOTH the primary identifier (e.g. Id) AND the primary human-readable descriptive name/label (e.g. FullName, ProductName, CategoryName, Title).
+                               - Foreign Key Auto-Join: When querying tables with foreign keys, NEVER return bare foreign key IDs alone. Always JOIN the referenced table using the foreign keys provided in the schema to include the human-readable descriptive name.
+                            5. If the user asks to modify, update, delete, drop, or alter data/tables, return EXACTLY:
                                SELECT 'ERROR: Destructive operations are strictly prohibited' AS Error;
-                            5. If the question cannot be answered using the schema, return EXACTLY:
+                            6. If the question cannot be answered using the schema, return EXACTLY:
                                SELECT 'ERROR: Question cannot be answered with available schema' AS Error;
                             """;
            
@@ -138,14 +148,14 @@ public class AiSqlSynthesizer : ISqlSynthesizer
             .GetProperty("content")
             .GetString();
 
-        return ParseSynthesisResponse(rawContent, _options.EnableChartSuggestions);
+        return ParseSynthesisResponse(rawContent, _options.EnableChartSuggestions, userPrompt);
     }
 
-    private static SqlSynthesisResult ParseSynthesisResponse(string? content, bool chartSuggestionsEnabled)
+    private static SqlSynthesisResult ParseSynthesisResponse(string? content, bool chartSuggestionsEnabled, string? userPrompt = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
-            return new SqlSynthesisResult(string.Empty, null);
+            return new SqlSynthesisResult(string.Empty, null, null);
         }
 
         var trimmed = content.Trim();
@@ -164,7 +174,7 @@ public class AiSqlSynthesizer : ISqlSynthesizer
             }
         }
 
-        // Try parsing as JSON object containing "sql" / "chart"
+        // Try parsing as JSON object containing "sql" / "explanation" / "chart"
         if (trimmed.StartsWith("{"))
         {
             try
@@ -176,6 +186,12 @@ public class AiSqlSynthesizer : ISqlSynthesizer
                 if (root.TryGetProperty("sql", out var sqlElem) && sqlElem.ValueKind == JsonValueKind.String)
                 {
                     sql = sqlElem.GetString() ?? string.Empty;
+                }
+
+                string? explanation = null;
+                if (root.TryGetProperty("explanation", out var expElem) && expElem.ValueKind == JsonValueKind.String)
+                {
+                    explanation = expElem.GetString();
                 }
 
                 ChartRecommendation? chartRec = null;
@@ -208,7 +224,11 @@ public class AiSqlSynthesizer : ISqlSynthesizer
 
                 if (!string.IsNullOrWhiteSpace(sql))
                 {
-                    return new SqlSynthesisResult(sql.Trim(), chartRec);
+                    if (string.IsNullOrWhiteSpace(explanation))
+                    {
+                        explanation = GenerateFallbackExplanation(sql, userPrompt);
+                    }
+                    return new SqlSynthesisResult(sql.Trim(), chartRec, explanation);
                 }
             }
             catch
@@ -218,10 +238,34 @@ public class AiSqlSynthesizer : ISqlSynthesizer
         }
 
         // Fallback: Treat content as raw SQL query
-        return new SqlSynthesisResult(trimmed, null);
+        var fallbackExplanation = GenerateFallbackExplanation(trimmed, userPrompt);
+        return new SqlSynthesisResult(trimmed, null, fallbackExplanation);
     }
 
-    private static string FormatSchemaToText(DatabaseSchema schema)
+    internal static string GenerateFallbackExplanation(string sql, string? userPrompt)
+    {
+        if (sql.StartsWith("SELECT 'ERROR:", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Unable to execute query due to schema constraints or security restrictions.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(userPrompt))
+        {
+            return $"Retrieves and aggregates records for \"{userPrompt.Trim()}\" based on active database schema filters.";
+        }
+
+        if (sql.Contains("GROUP BY", StringComparison.OrdinalIgnoreCase) || 
+            sql.Contains("SUM(", StringComparison.OrdinalIgnoreCase) || 
+            sql.Contains("COUNT(", StringComparison.OrdinalIgnoreCase) ||
+            sql.Contains("AVG(", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Aggregates and summarizes metrics across matching database records according to specified groupings.";
+        }
+
+        return "Retrieves matching database records based on the specified criteria and filter rules.";
+    }
+
+    internal static string FormatSchemaToText(DatabaseSchema schema)
     {
         var sb = new StringBuilder();
 
@@ -235,6 +279,16 @@ public class AiSqlSynthesizer : ISqlSynthesizer
                 var nullFlag = col.IsNullable ? "" : " NOT NULL";
                 sb.AppendLine($"  - {col.Name} ({col.DataType}){pkFlag}{nullFlag}");
             }
+
+            if (table.ForeignKeys != null && table.ForeignKeys.Count > 0)
+            {
+                sb.AppendLine("Foreign Keys / Relationships:");
+                foreach (var fk in table.ForeignKeys)
+                {
+                    sb.AppendLine($"  - {fk.FromColumn} -> {fk.ToTable}({fk.ToColumn})");
+                }
+            }
+
             sb.AppendLine();
         }
 

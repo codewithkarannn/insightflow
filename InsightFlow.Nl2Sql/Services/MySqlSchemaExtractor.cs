@@ -24,7 +24,8 @@ public class MySqlSchemaExtractor : ISchemaExtractor
             var columns = await GetColumnsForTableAsync(connection, tableName, securityContext, ct);
             if (columns.Count > 0)
             {
-                tables.Add(new TableInfo(tableName, columns));
+                var foreignKeys = await GetForeignKeysForTableAsync(connection, tableName, securityContext, ct);
+                tables.Add(new TableInfo(tableName, columns, foreignKeys));
             }
         }
 
@@ -86,6 +87,44 @@ public class MySqlSchemaExtractor : ISchemaExtractor
         }
 
         return columns;
+    }
+
+    private static async Task<List<ForeignKeyInfo>> GetForeignKeysForTableAsync(
+        MySqlConnection connection, 
+        string tableName, 
+        UserSecurityContext? securityContext, 
+        CancellationToken ct)
+    {
+        var foreignKeys = new List<ForeignKeyInfo>();
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+            WHERE TABLE_SCHEMA = DATABASE() 
+              AND TABLE_NAME = @tableName 
+              AND REFERENCED_TABLE_NAME IS NOT NULL;";
+
+        var param = command.CreateParameter();
+        param.ParameterName = "@tableName";
+        param.Value = tableName;
+        command.Parameters.Add(param);
+
+        using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var fromCol = reader.GetString(0);
+            var toTable = reader.GetString(1);
+            var toCol = reader.GetString(2);
+
+            if (IsColumnRestricted(tableName, fromCol, securityContext))
+            {
+                continue;
+            }
+
+            foreignKeys.Add(new ForeignKeyInfo(fromCol, toTable, toCol));
+        }
+
+        return foreignKeys;
     }
 
     private static bool IsColumnRestricted(string tableName, string columnName, UserSecurityContext? securityContext)

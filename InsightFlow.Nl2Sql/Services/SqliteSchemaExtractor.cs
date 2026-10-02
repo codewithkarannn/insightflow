@@ -23,7 +23,8 @@ public class SqliteSchemaExtractor : ISchemaExtractor
             var columns = await GetColumnsForTableAsync(connection, tableName, securityContext, ct);
             if (columns.Count > 0)
             {
-                tables.Add(new TableInfo(tableName, columns));
+                var foreignKeys = await GetForeignKeysForTableAsync(connection, tableName, securityContext, ct);
+                tables.Add(new TableInfo(tableName, columns, foreignKeys));
             }
         }
 
@@ -79,6 +80,34 @@ public class SqliteSchemaExtractor : ISchemaExtractor
         return columns;
     }
     
+    private static async Task<List<ForeignKeyInfo>> GetForeignKeysForTableAsync(
+        SqliteConnection connection, 
+        string tableName, 
+        UserSecurityContext? securityContext, 
+        CancellationToken ct)
+    {
+        var foreignKeys = new List<ForeignKeyInfo>();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA foreign_key_list('{tableName}');";
+
+        using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var toTable = reader.GetString(2);
+            var fromCol = reader.GetString(3);
+            var toCol = reader.IsDBNull(4) ? "Id" : reader.GetString(4);
+
+            if (IsColumnRestricted(tableName, fromCol, securityContext))
+            {
+                continue;
+            }
+
+            foreignKeys.Add(new ForeignKeyInfo(fromCol, toTable, toCol));
+        }
+
+        return foreignKeys;
+    }
+
     private static bool IsColumnRestricted(string tableName, string columnName, UserSecurityContext? securityContext)
     {
         if (securityContext?.RestrictedColumns == null || securityContext.RestrictedColumns.Count == 0)

@@ -15,14 +15,16 @@ public record Nl2SqlQueryResult(
     string? ErrorMessage,
     string? JsonData = null,
     ChartRecommendation? Chart = null,
-    QueryExecutionStats? Stats = null)
+    QueryExecutionStats? Stats = null,
+    string? Explanation = null)
 {
     public static Nl2SqlQueryResult Success(
         string generatedSql, 
         List<Dictionary<string, object?>>? data, 
         bool formatAsJson = false,
         ChartRecommendation? chart = null,
-        QueryExecutionStats? stats = null)
+        QueryExecutionStats? stats = null,
+        string? explanation = null)
     {
         string? jsonOutput = null;
 
@@ -42,11 +44,16 @@ public record Nl2SqlQueryResult(
             ErrorMessage: null,
             JsonData: jsonOutput,
             Chart: chart,
-            Stats: stats
+            Stats: stats,
+            Explanation: explanation
         );
     }
 
-    public static Nl2SqlQueryResult Failure(string errorMessage, string generatedSql = "", QueryExecutionStats? stats = null)
+    public static Nl2SqlQueryResult Failure(
+        string errorMessage, 
+        string generatedSql = "", 
+        QueryExecutionStats? stats = null,
+        string? explanation = null)
     {
         return new Nl2SqlQueryResult(
             IsSuccess: false,
@@ -55,7 +62,8 @@ public record Nl2SqlQueryResult(
             ErrorMessage: errorMessage,
             JsonData: null,
             Chart: null,
-            Stats: stats
+            Stats: stats,
+            Explanation: explanation
         );
     }
 

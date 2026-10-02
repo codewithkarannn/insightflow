@@ -12,6 +12,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Chart, ChartTypeRegistry, registerables } from 'chart.js';
 import { ChartRecommendation } from '../../../services/nl2sql-service';
+import { formatNumberWithCommas } from '../../store/studio.store';
 
 Chart.register(...registerables);
 
@@ -30,7 +31,7 @@ Chart.register(...registerables);
         </div>
 
         <div class="chart-controls">
-          <label class="control-label">CHART TYPE:</label>
+          <label class="control-label">Chart Type:</label>
           <select
             class="chart-type-select"
             [ngModel]="activeChartType"
@@ -52,11 +53,11 @@ Chart.register(...registerables);
 
       <div class="chart-footer-meta">
         <div class="meta-tag">
-          <span class="meta-label">X-AXIS (LABELS):</span>
+          <span class="meta-label">Category Axis:</span>
           <code class="meta-code">{{ xAxisCol }}</code>
         </div>
         <div class="meta-tag">
-          <span class="meta-label">Y-AXIS (DATA):</span>
+          <span class="meta-label">Value Metrics:</span>
           @for (col of yAxisCols; track col) {
             <code class="meta-code">{{ col }}</code>
           }
@@ -68,11 +69,11 @@ Chart.register(...registerables);
     .chart-viewer-container {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.15rem;
       background: var(--surface-card, #121215);
       border: 1px solid var(--border-subtle, #27272a);
-      border-radius: 4px;
-      padding: 1.25rem;
+      border-radius: 10px;
+      padding: 1.35rem;
     }
 
     .chart-viewer-header {
@@ -85,17 +86,16 @@ Chart.register(...registerables);
 
     .chart-title {
       margin: 0 0 0.25rem 0;
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 700;
-      letter-spacing: 0.03em;
       color: var(--text-primary, #fafafa);
     }
 
     .chart-reasoning {
       margin: 0;
-      font-size: 0.8rem;
+      font-size: 0.825rem;
       color: var(--text-muted, #a1a1aa);
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .chart-controls {
@@ -105,27 +105,25 @@ Chart.register(...registerables);
     }
 
     .control-label {
-      font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-      font-size: 0.65rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--text-dim, #71717a);
-      letter-spacing: 0.05em;
     }
 
     .chart-type-select {
       background: var(--bg-main, #09090b);
       border: 1px solid var(--border-subtle, #27272a);
       color: var(--text-primary, #fafafa);
-      padding: 4px 10px;
-      border-radius: 3px;
-      font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-      font-size: 0.75rem;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
       outline: none;
       cursor: pointer;
     }
 
     .chart-type-select:focus {
-      border-color: var(--border-strong, #3f3f46);
+      border-color: #38bdf8;
     }
 
     .chart-canvas-wrapper {
@@ -134,34 +132,39 @@ Chart.register(...registerables);
       width: 100%;
     }
 
+    @media (max-width: 600px) {
+      .chart-canvas-wrapper {
+        height: 250px;
+      }
+    }
+
     .chart-footer-meta {
       display: flex;
       align-items: center;
       gap: 1.25rem;
       border-top: 1px solid var(--border-subtle, #27272a);
-      padding-top: 0.75rem;
+      padding-top: 0.85rem;
       flex-wrap: wrap;
     }
 
     .meta-tag {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.4rem;
     }
 
     .meta-label {
-      font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-      font-size: 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
       color: var(--text-dim, #71717a);
-      letter-spacing: 0.05em;
     }
 
     .meta-code {
       background: var(--bg-main, #09090b);
       border: 1px solid var(--border-subtle, #27272a);
-      color: #60a5fa;
-      padding: 2px 6px;
-      border-radius: 3px;
+      color: #38bdf8;
+      padding: 2px 7px;
+      border-radius: 4px;
       font-family: var(--font-mono, 'IBM Plex Mono', monospace);
       font-size: 0.75rem;
     }
@@ -326,6 +329,14 @@ export class ChartViewerComponent implements OnChanges, AfterViewInit, OnDestroy
             bodyFont: {
               family: 'Inter, sans-serif',
             },
+            callbacks: {
+              label: (context: any) => {
+                const label = context.dataset?.label || '';
+                const rawVal = context.parsed?.y !== undefined ? context.parsed.y : context.raw;
+                const formatted = formatNumberWithCommas(rawVal);
+                return label ? `${label}: ${formatted}` : formatted;
+              },
+            },
           },
         },
         scales: !isPieOrDoughnut && this.activeChartType !== 'radar'
@@ -351,6 +362,9 @@ export class ChartViewerComponent implements OnChanges, AfterViewInit, OnDestroy
                   font: {
                     family: 'IBM Plex Mono, monospace',
                     size: 10,
+                  },
+                  callback: (value: any) => {
+                    return formatNumberWithCommas(value);
                   },
                 },
               },

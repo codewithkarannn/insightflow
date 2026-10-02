@@ -6,4 +6,5 @@ namespace InsightFlow.Nl2Sql.Models;
 /// </summary>
 public record SqlSynthesisResult(
     string Sql,
-    ChartRecommendation? Chart = null);
+    ChartRecommendation? Chart = null,
+    string? Explanation = null);

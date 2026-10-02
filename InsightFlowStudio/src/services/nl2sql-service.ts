@@ -34,6 +34,7 @@ export interface ApiQueryResponse {
   chart?: ChartRecommendation;
   error?: string;
   stats?: QueryExecutionStats;
+  explanation?: string;
 }
 
 @Injectable({ providedIn: 'root' })

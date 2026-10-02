@@ -20,4 +20,7 @@
     <PackageReference Include="MySqlConnector" Version="2.6.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="InsightFlow.Nl2Sql.Tests" />
+  </ItemGroup>
 </Project>

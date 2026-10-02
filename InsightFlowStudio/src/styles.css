@@ -1,34 +1,46 @@
-/* You can add global styles to this file, and also import other style files */
-:root, [data-theme="dark"] {
-  --bg-main: #09090b;
-  --surface-card: #121215;
-  --surface-elevated: #18181b;
-  --border-subtle: #27272a;
-  --border-strong: #3f3f46;
-  --text-primary: #fafafa;
-  --text-muted: #a1a1aa;
-  --text-dim: #71717a;
-  --accent-contrast: #ffffff;
-  --btn-primary-bg: #ffffff;
-  --btn-primary-text: #000000;
-  --btn-primary-hover: #e4e4e7;
+/* Global theme and design tokens */
+:root, [data-theme="light"] {
+  --bg-main: #f8fafc;                /* Clean, executive off-white canvas */
+  --surface-card: #ffffff;           /* Crisp, pure white card background */
+  --surface-elevated: #f1f5f9;       /* Subtle off-white for headers, tags & controls */
+  --surface-hover: #f8fafc;          /* Soft row hover tint */
+  --border-subtle: #e2e8f0;          /* Delicate slate border */
+  --border-strong: #cbd5e1;          /* Defined focus/active border */
+  --border-card: #e2e8f0;            /* Crisp card border */
+  --text-primary: #0f172a;           /* Deep slate navy (ultra-readable executive typography) */
+  --text-muted: #475569;            /* Sophisticated slate charcoal */
+  --text-dim: #64748b;              /* Clean slate */
+  --accent-primary: #2563eb;         /* Executive Sapphire Blue */
+  --accent-soft: #eff6ff;            /* Soft blue tint background */
+  --accent-soft-border: #bfdbfe;     /* Soft blue border */
+  --btn-primary-bg: #0f172a;         /* Deep slate primary button */
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #1e293b;
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+  --card-shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-[data-theme="light"] {
-  --bg-main: #ffffff;
-  --surface-card: #f4f4f5;
-  --surface-elevated: #e4e4e7;
-  --border-subtle: #e4e4e7;
-  --border-strong: #a1a1aa;
-  --text-primary: #09090b;
-  --text-muted: #52525b;
+[data-theme="dark"] {
+  --bg-main: #09090b;
+  --surface-card: #121215;
+  --surface-elevated: #18181b;
+  --surface-hover: #1f1f23;
+  --border-subtle: #27272a;
+  --border-strong: #3f3f46;
+  --border-card: #27272a;
+  --text-primary: #fafafa;
+  --text-muted: #a1a1aa;
   --text-dim: #71717a;
-  --accent-contrast: #000000;
-  --btn-primary-bg: #09090b;
-  --btn-primary-text: #ffffff;
-  --btn-primary-hover: #27272a;
+  --accent-primary: #38bdf8;
+  --accent-soft: rgba(56, 189, 248, 0.12);
+  --accent-soft-border: rgba(56, 189, 248, 0.25);
+  --btn-primary-bg: #ffffff;
+  --btn-primary-text: #000000;
+  --btn-primary-hover: #f4f4f5;
+  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  --card-shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.5);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
@@ -48,6 +60,6 @@ body {
 }
 
 ::selection {
-  background-color: var(--text-primary);
-  color: var(--bg-main);
+  background-color: var(--accent-primary);
+  color: #ffffff;
 }

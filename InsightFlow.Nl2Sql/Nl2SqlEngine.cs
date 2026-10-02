@@ -119,7 +119,13 @@ public class Nl2SqlEngine : INl2SqlEngine
                 effectiveTimeout);
 
             bool returnJson = _options.ResponseFormat == OutputFormat.Json;
-            return Nl2SqlQueryResult.Success(sanitizedSql, dataRows, returnJson, synthesisResult.Chart, stats);
+            return Nl2SqlQueryResult.Success(
+                sanitizedSql, 
+                dataRows, 
+                returnJson, 
+                synthesisResult.Chart, 
+                stats, 
+                synthesisResult.Explanation);
         }
         catch (TimeoutException tex)
         {
